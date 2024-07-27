@@ -2,10 +2,23 @@ import { Context } from "hono";
 import { getPrisma } from "../utils/prismaClient";
 import hashPassword from "../utils/encryption";
 import { sign } from "hono/jwt";
+import { signinInput, createBlogInput, updateBlogInput } from "inputschemas";
 
 export const adminSignin = async (c: Context) => {
   try {
-    const { email, password } = await c.req.json();
+    const body = await c.req.json();
+    const { success, error } = signinInput.safeParse(body);
+    if (!success) {
+      return c.json(
+        {
+          message: "Bad Inputs",
+          error: error.errors,
+        },
+        400
+      );
+    }
+    const email = body.email;
+    const password = body.password;
     const prisma = getPrisma(c.env.DATABASE_URL);
     const user = await prisma.user.findUnique({
       where: {
@@ -66,7 +79,16 @@ export const postBlog = async (c: Context) => {
 
   const prisma = getPrisma(c.env.DATABASE_URL);
   const body = await c.req.json();
-
+  const { success, error } = createBlogInput.safeParse(body);
+  if (!success) {
+    return c.json(
+      {
+        message: "Bad Inputs",
+        error: error.errors,
+      },
+      400
+    );
+  }
   try {
     const post = await prisma.post.create({
       data: {
@@ -109,7 +131,16 @@ export const editBlog = async (c: Context) => {
 
   const prisma = getPrisma(c.env.DATABASE_URL);
   const body = await c.req.json();
-
+  const { success, error } = updateBlogInput.safeParse(body);
+  if (!success) {
+    return c.json(
+      {
+        message: "Bad Inputs",
+        error: error.errors,
+      },
+      400
+    );
+  }
   try {
     await prisma.post.update({
       where: {

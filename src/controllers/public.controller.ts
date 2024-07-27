@@ -2,10 +2,21 @@ import { Context } from "hono";
 import { getPrisma } from "../utils/prismaClient";
 import hashPassword from "../utils/encryption";
 import { sign } from "hono/jwt";
+import { signupInput, signinInput } from "inputschemas";
 
 export const signupUser = async (c: Context) => {
   const prisma = getPrisma(c.env.DATABASE_URL);
   const body = await c.req.json();
+  const { success, error } = signupInput.safeParse(body);
+  if (!success) {
+    return c.json(
+      {
+        message: "Bad inputs",
+        error: error.errors
+      },
+      400
+    );
+  }
   const password = body.password;
   const hashedPassword = await hashPassword(password);
 
@@ -27,7 +38,8 @@ export const signupUser = async (c: Context) => {
     };
     console.log(payload);
     // Sign the JWT token
-    const secret = (user.role === "USER") ? c.env.JWT_SECRET : c.env.ADMIN_JWT_SECRET;
+    const secret =
+      user.role === "USER" ? c.env.JWT_SECRET : c.env.ADMIN_JWT_SECRET;
     console.log(secret);
     const token = await sign(payload, secret);
 
@@ -38,16 +50,25 @@ export const signupUser = async (c: Context) => {
     });
   } catch (error: any) {
     console.log("Error in creating user", error.message);
-    return c.json({ error: "User not created!!" }, 500);
+    return c.json({ error: "User not created" }, 500);
   }
 };
 
 export const signinUser = async (c: Context) => {
   const prisma = getPrisma(c.env.DATABASE_URL);
   const body = await c.req.json();
+  const { success, error } = signinInput.safeParse(body);
+  if (!success) {
+    return c.json(
+      {
+        message: "Bad inputs",
+        error: error.errors
+      },
+      400
+    );
+  }
   const email = body.email;
   const password = body.password;
-
   try {
     const user = await prisma.user.findUnique({
       where: {
@@ -84,7 +105,7 @@ export const signinUser = async (c: Context) => {
     }
   } catch (error: any) {
     console.log("Error in login handle", error.message);
-    return c.json({ error: "Login error!!" }, 500);
+    return c.json({ error: "Login error" }, 500);
   }
 };
 

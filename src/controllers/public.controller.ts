@@ -4,6 +4,12 @@ import hashPassword from "../utils/encryption";
 import { sign } from "hono/jwt";
 import { signupInput, signinInput } from "inputschemas";
 
+class ConflictError extends Error {
+  constructor(message: string) {
+    super(message);
+    this.name = "ConflictError";
+  }
+}
 export const signupUser = async (c: Context) => {
   const prisma = getPrisma(c.env.DATABASE_URL);
   const body = await c.req.json();
@@ -12,7 +18,7 @@ export const signupUser = async (c: Context) => {
     return c.json(
       {
         message: "Bad inputs",
-        error: error.errors
+        error: error.errors,
       },
       400
     );
@@ -21,6 +27,28 @@ export const signupUser = async (c: Context) => {
   const hashedPassword = await hashPassword(password);
 
   try {
+    const existingUsername = await prisma.user.findFirst({
+      where: {
+        username: body.username,
+      },
+    });
+
+    if (existingUsername) {
+      throw new ConflictError("Username already taken.");
+    }
+
+    const existingEmail = await prisma.user.findFirst({
+      where: {
+        email: body.email,
+      },
+    });
+
+    if (existingEmail) {
+      throw new ConflictError(
+        "A user already registered with the given email."
+      );
+    }
+
     const user = await prisma.user.create({
       data: {
         email: body.email,
@@ -43,12 +71,23 @@ export const signupUser = async (c: Context) => {
     console.log(secret);
     const token = await sign(payload, secret);
 
-    return c.json({
-      message: "User Created",
-      userId: user.id,
-      token: token,
-    });
+    return c.json(
+      {
+        message: "User Created",
+        userId: user.id,
+        token: token,
+      },
+      201
+    );
   } catch (error: any) {
+    if (error instanceof ConflictError) {
+      return c.json(
+        {
+          error: error.message,
+        },
+        409
+      );
+    }
     console.log("Error in creating user", error.message);
     return c.json({ error: "User not created" }, 500);
   }
@@ -62,7 +101,7 @@ export const signinUser = async (c: Context) => {
     return c.json(
       {
         message: "Bad inputs",
-        error: error.errors
+        error: error.errors,
       },
       400
     );

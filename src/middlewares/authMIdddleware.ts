@@ -32,6 +32,7 @@ export default async function authMiddleware(c: Context, next: Next) {
     c.set("role", decoded.role);
     await next();
   } catch (err: any) {
+    console.log("Auth middleware error:", err.message);
     return c.json({
       error: "Unauthorized"
     }, 401);

@@ -4,6 +4,7 @@ import blogRoutes from './routes/getblogRoutes';
 import adminRoutes from './routes/adminRoutes'
 import authMiddleware from './middlewares/authMIdddleware';
 import authAdminMiddleware from './middlewares/authAdminMiddleware';
+import { cors } from 'hono/cors';
 
 const app = new Hono<{
     Bindings : {
@@ -16,6 +17,10 @@ const app = new Hono<{
         role : string;
     }
 }>();
+
+app.use("/api/*", cors({
+    origin : "http://localhost:5173"
+}))
 
 app.use("/api/v1/blog/*", authMiddleware);
 app.use("/api/v1/admin/blog/*", authAdminMiddleware);
